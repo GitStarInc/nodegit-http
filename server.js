@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 var fs      = require('fs');
 var async   = require('async');
 var express = require('express');
@@ -5,9 +6,10 @@ var git     = require('nodegit');
 var debug   = require('debug')('nodegit-express');
 var _       = require('underscore');
 
-var BASE_DIR = fs.realpathSync(process.argv[2] || 
-                               process.env.BASE_DIR || __dirname);
-var PORT     = process.argv[3] || process.env.PORT || 3000;
+var BASE_DIR = fs.realpathSync(process.argv[2] || process.env.BASE_DIR ||
+                               process.env.npm_config_BASE_DIR || __dirname);
+var PORT = process.argv[3] || process.env.PORT ||
+           process.env.npm_config_PORT || 3000;
 
 var app = express();
 
