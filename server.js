@@ -16,8 +16,8 @@ var app = express();
 // Handle params
 
 app.param('repo', function (req, res, next, name) {
-  if (!/^\w+$/.test(name)) {
-    next("Invalid repo name");
+  if (!/^(\w|-)+$/.test(name)) {
+    next("Invalid repo name: " + name);
   } else {
     git.Repo.open(BASE_DIR+"/"+name+".git", function (err, repo) {
       if (err) next(err);
