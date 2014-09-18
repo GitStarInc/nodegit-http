@@ -1,6 +1,6 @@
 {
   "name": "nodegit-http",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "Read-only GitHub-like HTTP API atop nodegit using express.",
   "main": "server.js",
   "bin" : {
@@ -29,7 +29,8 @@
     "express"    : "^4.8.4",
     "nodegit"    : "^0.1.4",
     "debug"      : "^1.0.4",
-    "underscore" : "^1.6.0"
+    "underscore" : "^1.6.0",
+    "docopt"     : "~0.4.0"
   },
   "author": "Deian Stefan <deian@cs.stanford.edu>",
   "license": "MIT"
