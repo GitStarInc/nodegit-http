@@ -1,27 +1,75 @@
 #!/usr/bin/env node
 var fs      = require('fs');
+var path    = require('path');
 var async   = require('async');
 var express = require('express');
 var git     = require('nodegit');
-var debug   = require('debug')('nodegit-express');
+var debug   = require('debug')('nodegit-http');
 var _       = require('underscore');
+var docopt  = require('docopt').docopt;
 
-var BASE_DIR = fs.realpathSync(process.argv[2] || process.env.BASE_DIR ||
+var usage = _toString(function() {/*
+Simple git http server.
+
+Usage:
+ $program [--base=BASE_DIR] [--port=PORT] [--auth=AUTH_FILE]
+ $program -h | --help
+ $program -v | --version
+
+Options:
+  --port=PORT       Port to listen on                       [default: 3000]
+  --base=BASE_DIR   Base directory for user repositories
+  --auth=AUTH_FILE  Filepath of authorization module
+  -h --help         Show this
+  -v --version      Get version
+
+*/});
+
+var cli = docopt(usage, { version: require('./package.json').version });
+
+var BASE_DIR = fs.realpathSync(cli['--base'] || process.env.BASE_DIR  ||
                                process.env.npm_config_BASE_DIR || __dirname);
-var PORT = process.argv[3] || process.env.PORT ||
-           process.env.npm_config_PORT || 3000;
+
+var PORT = parseInt(cli['--port'] || process.env.PORT ||
+                    process.env.npm_config_PORT || "3000");
+
+var AUTH_FILE = cli['--auth'] || process.env.AUTH_FILE || process.env.npm_config_AUTH_FILE;
+
+var authorize;
+
+if (AUTH_FILE) {
+  authorize = require(AUTH_FILE);
+} else {
+  console.warn("WARNING: No authorize module provided, allowing all");
+  authorize = function(req, res, next) {
+    next();
+  };
+}
 
 var app = express();
 
 // Handle params
 
+app.param('user', function (req, res, next, user) {
+  if (!/^\w[\w\+\-\.]*$/.test(user)) {
+    next("Invalid user name");
+  } else {
+    req.user = user;
+    authorize(req, res, next);
+  }
+});
+
 app.param('repo', function (req, res, next, name) {
   if (!/^\w[\w\+\-\.]*$/.test(name)) {
     next("Invalid repo name");
   } else {
-    git.Repo.open(BASE_DIR+"/"+name+".git", function (err, repo) {
-      if (err) next(err);
-      else {
+    var repoPath = path.join(BASE_DIR, req.user, name+".git");
+    git.Repository.open(repoPath, function (err, repo) {
+      if (err) {
+        debug("Failed to open repo with: "+err);
+        res.status(404).json({ error: "Unknown repository."});
+      } else {
+        debug("Opened repo: "+name);
         req.repo = repo;
         next();
       }
@@ -39,22 +87,23 @@ app.param('sha', function (req, res, next, sha) {
 
 // Refrerences
 
-app.get('/repos/:repo/git/refs', function(req, res) {
+app.get('/repos/:user/:repo/git/refs', function(req, res) {
   handlGetReferences(req, res);
 });
 
-app.get('/repos/:repo/git/refs/:sub', function(req, res) {
+app.get('/repos/:user/:repo/git/refs/:sub', function(req, res) {
   var sub = "refs/"+req.params.sub+"/";
   handlGetReferences(req, res, function (name) {
     return (name.indexOf(sub) === 0);
   });
 });
 
-app.get('/repos/:repo/git/refs/*', function(req, res) {
+app.get('/repos/:user/:repo/git/refs/*', function(req, res) {
   var name = "refs/"+req.params[0];
   refNameToJSON.bind(req.repo)(name, function (err, refs) {
     if (err) {
-      res.status(500).json({ error: err.toString() });
+      debug("Failed to get reference(s): "+err);
+      res.status(500).json({ error: "Failed to get reference(s)." });
     } else {
       res.status(200).json(refs);
     }
@@ -64,11 +113,12 @@ app.get('/repos/:repo/git/refs/*', function(req, res) {
 // Commits
 
 
-app.get('/repos/:repo/git/commits/:sha', function(req, res) {
+app.get('/repos/:user/:repo/git/commits/:sha', function(req, res) {
   var sha = req.params.sha;
   req.repo.getCommit(sha, function (err, commit) {
     if (err) {
-       res.status(500).json({ error: err.toString() });
+    debug("Failed to get commit: "+err);
+       res.status(500).json({ error: "Failed to get commit."});
     } else {
        function oidJSON(oid) { return {sha: oid.sha()}; }
        res.status(200).json(
@@ -78,7 +128,6 @@ app.get('/repos/:repo/git/commits/:sha', function(req, res) {
          , message   : commit.message()
          , tree      : oidJSON(commit.treeId())
          , parents   : _.map(commit.parents(), oidJSON)
-                     
          });
     }
   });
@@ -86,7 +135,7 @@ app.get('/repos/:repo/git/commits/:sha', function(req, res) {
 
 // Trees
 
-app.get('/repos/:repo/git/trees/:sha', function(req, res) {
+app.get('/repos/:user/:repo/git/trees/:sha', function(req, res) {
   var sha = req.params.sha;
   async.waterfall([
     req.repo.getTree.bind(req.repo, sha),
@@ -133,7 +182,7 @@ app.get('/repos/:repo/git/trees/:sha', function(req, res) {
 
 // Blobs
 
-app.get('/repos/:repo/git/blobs/:sha', function(req, res) {
+app.get('/repos/:user/:repo/git/blobs/:sha', function(req, res) {
   var sha = req.params.sha;
   req.repo.getBlob(sha, function (err, blob) {
     if (err) {
@@ -148,7 +197,7 @@ app.get('/repos/:repo/git/blobs/:sha', function(req, res) {
 
 // Tags
 
-app.get('/repos/:repo/git/tags/:sha', function(req, res) {
+app.get('/repos/:user/:repo/git/tags/:sha', function(req, res) {
   var sha = req.params.sha;
   req.repo.getTag(sha, function (err, tag) {
     if (err) {
@@ -176,7 +225,7 @@ console.log("Serving repos from %s on port %d", BASE_DIR, PORT);
 // supplied filter function
 function handlGetReferences(req, res, filter) {
   async.waterfall([
-    req.repo.getReferences.bind(req.repo, git.Reference.Type.All),
+    req.repo.getReferences.bind(req.repo, git.Refs.Type.All),
     function (refNames, cb) {
       if (filter) {
         refNames = _.filter(refNames, filter);
@@ -186,7 +235,8 @@ function handlGetReferences(req, res, filter) {
     }
   ], function (err, refs) {
      if (err) {
-        res.status(500).json({ error: err.toString() });
+        debug("Failed to get reference(s): "+err);
+        res.status(500).json({ error: "Failed to get reference(s)." });
      } else {
         res.status(200).json(refs);
      }
@@ -229,4 +279,10 @@ function refNameToJSON(name, cb) {
                                     , sha : sha.toString() }});
     }
   ], cb);
+}
+
+function _toString(f) {
+  var program = __filename.split("/").slice(-1)[0];
+  var lines = f.toString().replace(/\$program/g,program).split('\n');
+  return lines.splice(1, lines.length-2).join('\n');
 }
