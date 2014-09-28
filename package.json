@@ -1,6 +1,6 @@
 {
   "name": "nodegit-http",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Read-only GitHub-like HTTP API atop nodegit using express.",
   "main": "server.js",
   "bin" : {
@@ -8,16 +8,16 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha"
   },
   "repository" : {
     "type": "git",
-    "url": "git@github.com:deian/nodegit-http.git"
+    "url": "git@github.com:GitStarInc/nodegit-http.git"
   },
   "bugs" : {
-    "url": "https://github.com/deian/nodegit-http/issues"
+    "url": "https://github.com/GitStarInc/nodegit-http/issues"
   },
-  "homepage" : "https://github.com/deian/nodegit-http",
+  "homepage" : "https://github.com/GitStarInc/nodegit-http",
   "keywords": [
     "git",
     "rest",
@@ -30,8 +30,17 @@
     "nodegit"    : "0.1.4",
     "debug"      : "^1.0.4",
     "underscore" : "^1.6.0",
-    "docopt"     : "~0.4.0"
+    "docopt"     : "^0.4.0"
   },
-  "author": "Deian Stefan <deian@cs.stanford.edu>",
+  "devDependencies": {
+    "async"      : "^0.9.0",
+    "express"    : "^4.8.4",
+    "nodegit"    : "0.1.4",
+    "debug"      : "^1.0.4",
+    "underscore" : "^1.6.0",
+    "supertest"  : "^0.14.0",
+    "mocha"      : "^1.21.4"
+  },
+  "author": "GitStar Inc.",
   "license": "MIT"
 }
