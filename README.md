@@ -8,14 +8,7 @@ While there are a few similar node projects out there, the goal of this project 
 npm install -g nodegit
 npm install -g nodegit-http
 
-nodegit-http [BASE_DIR [, PORT]]
-```
-
-Or from source:
-
-```shell
-git clone git@github.com:deian/nodegit-http.git
-cd nodegit-http && npm install && npm --BASE_DIR=/var/repos/ --PORT=1337 start
+nodegit-http [--base=BASE_DIR] [--port=PORT] [--auth=AUTH_FILE]
 ```
 
 **nodegit-http** serves any git repositories from the current directory, or that specified by the environment variable `BASE_DIR`.  The assumed directory structure is as follows:
@@ -26,9 +19,44 @@ BASE_DIR/anotheruser/theirrepo.git
 ...
 ```
 
+#### Authorization
+
+The binary takes a file path to an authorization node module. This module is expected to define a middleware function that the server will use for authorization:
+
+```javascript
+modules.exports = function(req, res, next) {
+  //E.g., allow : next();
+  //E.g., deny  : next("Signal error");
+};
+```
+
+The function is provided with the HTTP request (`req`), which you can use extract authorization information from; the response (`res`) can be used to directly produce an HTTP response; and, `next` should be used to to pass control to the next middleware. See [express.js middleware](http://expressjs.com/4x/api.html#middleware.api) for more information.
+
+### Using as a library
+
+You can also use nodegit-http as a library
+
+```javascript
+var githttp = require('nodegit-http');
+var app  = githttp({ baseDir: ...
+                   , authorize: function (req, res, next) {
+                     ...
+                   });
+
+app.listen(PORT);
+console.log('Serving repos from %s on port %d', BASE_DIR, PORT);
+```
+
+The module requires a base directory, specified by the property
+`baseDir` of the options argument. The app will use the specified
+'authorize' function for authorization, if provided. Otherwise it will
+just use allow all requests.
+
+Finally, it returns an `app` object which is a [express.js Application](http://expressjs.com/4x/api.html#express), that you can use as usual. The module will use the `app` provided in the (property `app`) options object; this is useful if you wish to define that should match first.
+
 ### API
 
-The server exposes sevaral routes, similar to the [GitHub-API](https://developer.github.com/v3/git/). All responses are JSON.
+The server exposes several routes, similar to the [GitHub-API](https://developer.github.com/v3/git/). All responses are JSON.
 
 * [`GET /repos/:user/:repo/git/blobs/:sha`](https://developer.github.com/v3/git/blobs/#get-a-blob): get a blob.
 * [`GET /repos/:user/:repo/git/refs`](https://developer.github.com/v3/git/refs/#get-all-references): get all references.
