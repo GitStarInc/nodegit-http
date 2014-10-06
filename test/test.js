@@ -9,12 +9,12 @@ var BASE_DIR = fs.realpathSync('./test/repos');
 
 var app = require('../lib/nodegit-http')({baseDir : BASE_DIR});
 
-var refs = [ {ref:'refs/heads/mybranch',
-              object: {type:'commit',
-                       sha:'249a81e10c5cbc482557870a61edeec5b1d1a4cb'}}
-           , {ref:'refs/heads/master',
+var refs = [ {ref:'refs/heads/master',
               object:{type:'commit',
                       sha:'6a0b75bdd2a7e8f08670af9295be4f149344eec0'}}
+           , {ref:'refs/heads/mybranch',
+              object: {type:'commit',
+                       sha:'249a81e10c5cbc482557870a61edeec5b1d1a4cb'}}
            , {ref:'refs/tags/v0.0',
               object:{type:'tag',
                       sha:'3e0a08f77cf3d1d3cc8dacf62022ae22801fa366'}}];
@@ -42,7 +42,7 @@ describe('GET /refs/*', function (done) {
     request(app)
       .get('/repos/a/project1/git/refs/heads/master')
       .expect('Content-Type', /json/)
-      .expect(200, JSON.stringify(refs[1]), done);
+      .expect(200, JSON.stringify(refs[0]), done);
   });
 });
 
