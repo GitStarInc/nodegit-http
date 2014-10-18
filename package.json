@@ -1,6 +1,6 @@
 {
   "name": "nodegit-http",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Read-only GitHub-like HTTP API atop nodegit using express.",
   "main": "server.js",
   "bin" : {
